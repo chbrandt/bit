@@ -1,1 +1,0 @@
-../Lista2/smo_v1.py
