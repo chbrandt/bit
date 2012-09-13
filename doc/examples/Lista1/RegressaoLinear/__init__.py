@@ -1,0 +1,4 @@
+from GradienteLote import GradienteLote
+from GradienteEstocastico import GradienteEstocastico
+from LeastSquare import LeastSquare
+
