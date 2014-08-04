@@ -189,6 +189,17 @@ class pydepgraphdot:
 def main():
     pydepgraphdot().main(sys.argv[1:])
 
+# In step 3 we will be passing our data into dot, part of graphviz In step 2 we need to 
+#  convert the raw dependency data generated in step 1 into the correct format, and apply 
+#  any presentation logic.
+#
+# In simple cases you can use depgraph2dot.py as-is. It receives the raw data in standard 
+#  input, and provides the generated dot file on standard output.
+#
+# For the best presentation you will need a little programming. Create a subclass of the 
+#  class defined in this module, override some methods that apply presentation logic, then 
+#  call the main() method of one of those objects.
+
 if __name__=='__main__':
     main()
 

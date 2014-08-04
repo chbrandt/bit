@@ -32,18 +32,23 @@
 # 4) Match detection if needed/wanted
 
 
-import logging
-logging.basicConfig(level=logging.DEBUG,filename='finder.log',filemode='w')
+import logging;
+logging.basicConfig(level=logging.INFO,filename='Log_finder.txt',filemode='w');
 
-import matplotlib.pyplot as plt
-import scipy.ndimage as ndi
-import numpy as np
+import numpy
+import matplotlib
+from matplotlib import pyplot;
+import scipy.ndimage as ndi;
 
+plt = pyplot;
+np = numpy;
+
+import pyfits
 
 # ----------------------------------------------------------
 # RUN
 #
-def run(img,thresh=0,seeds=[],truth=[],radius=10,border=0):
+def run(img,thresh_low=0,thresh_high=99,normal=True,seeds=[],truth=[],radius=10,border=0):
     """
     Function to run this segmentation algorithm(s)
     
@@ -73,85 +78,150 @@ def run(img,thresh=0,seeds=[],truth=[],radius=10,border=0):
     Enjoy.
     ---
     """
-    
+    thresh = thresh_low;
+
     img = img[::-1,:]
+    img[img<=0] = 0
     
-    # Pre-proc
-    # --------
-    #img_clip = histmod(img,99)   # float image
-    #img = normalize(img_clip)    # float image
+    logging.info("Image [shape] : (%s)",img.shape)
+    logging.debug("Image type : (%s)",img.dtype)
 
     imin = img.min()
     imax = img.max()
+#    img = normalize(img)    # float image
+#    logging.info("Image [range] normalized [0:1] : (%.2f,%.2f)",imin,imax)
+    
+    imgHist_plot = imhist(img)
+    imgHist_plot.savefig('img_histogram.png')
+    logging.info("Generated a histogram of the image: %s",'img_histogram.png')
+
     imean = np.mean(img)
     istd = np.std(img)
-    logging.debug("Image shape(%s) type(%s)",img.shape,img.dtype)
-    logging.debug("Image Min(%.2f) Max(%.2f) Mean(%.2f) Std(%.2f)",imin,imax,imean,istd)
+    logging.info("Image [mean] : (%.2f)",imean)
+    logging.info("Image [stdDev] : (%.2f)",istd)
 
 
-    # Segment
-    # -------
-    img_smooth = ndi.gaussian_filter(img,3)
-    if thresh == 0:
-        thresh = histmax(img)
-        thresh += np.std(img)
-    logging.debug("Image Gauss-smoothed, sigma=%d",3)
-    logging.debug("Image threshold: %.2f",thresh)
+    # Convenience function to save image arrays on PNG files
+    def saveImage(img,rootname='imgOut'):
+        plt.imshow(img)
+        plt.savefig(rootname+'.png')
     
-    img_regions,nlbl = ndi.label(thresholding(img,thresh))
-    if seeds:
-        img_regions = run_rg(img_smooth,seeds,thresh)
-    logging.debug("Segmented IDs: %d",img_regions.max())
+    # And use (MO) binary opening (erosion + dilation) for cleaning spurious regions
+    def binary_opening(img_bin):
+        strct = ndi.generate_binary_structure(img_bin.ndim,2)
+        return ndi.binary_opening(img_bin,strct)
 
 
-    # Measure
-    # -------
-    img_centroids = center_bright(img_regions,border)
-    idx_centroids = np.where(img_centroids)
-    centroids = zip(idx_centroids[1],idx_centroids[0])
-    logging.debug("Centroids: %s",centroids)
-    
-
-    # Output
-    # ------
-    plt.imshow(img_smooth)
-    plt.savefig('image_smoothed.png')
-    plt.imshow(img_regions)
-    plt.savefig('image_segmented.png')
-    plt.imshow(img_centroids)
-    plt.savefig('image_centroids.png')
-    print "-------------------------------"
-    print "Segmented objects (centroid):"
-    print "Xo Yo"
-    for o_o in centroids:
-        print o_o[0],o_o[1]
-    print "---------"
-
-
-    # Matching
+    # Pre-proc
     # --------
-    if truth:
-        matching_table = match_positions(centroids,truth,radius)
-        matched_elem,neib_x,neib_y = zip(*matching_table)
-        logging.debug("Matched list: %s",matched_elem)
-        logging.debug("Neibors X: %s",neib_x)
-        logging.debug("Neibors Y: %s",neib_y)
-        
-        Ntrue = matched_elem.count(True)
-        Nfalse = matched_elem.count(False)
-        Ntotal_truth = len(truth)
-        Ntotal_sample = len(centroids)
-        print "-------------------------------"
-        print "Matched points (truth neibour):"
-        print "Xo Yo neib? nearest_X nearest_Y"
-        for i in range(len(centroids)):
-            print centroids[i][0],centroids[i][1],matched_elem[i],neib_x[i],neib_y[i]
-        print "-------------------------------"
-        print "Completeness: ",Ntrue/float(Ntotal_truth)
-        print "Contamination: ",Nfalse/float(Ntotal_truth)
-        
 
-    return
+    img_clip = histmod(img,thresh_high)   # float image
+    logging.info("Removed high-end (>%s) pixels",thresh_high)
+    logging.info("Applied [threshold_high] in : %s",img_clip.max())
+
+    fname='out1_imgThreshHighCut'
+    saveImage(img_clip,fname)
+    pyfits.writeto(fname+'.fits',img_clip,clobber=True)
+
+    if thresh_low == 0:
+        thresh_low = histmax(img)
+        thresh_low += np.std(img)
+
+    img_clip[img < thresh_low] = 0
+    
+    img_normal = normalize(img_clip)
+    
+    fname = 'out2_imgClip'
+    saveImage(img_normal,fname)
+    pyfits.writeto(fname+'.fits',img_normal,clobber=True)
+
+    img_bin = (img > thresh_low)
+    logging.info("Removed low-end (%s<) pixels",thresh_low)    
+#    img_bin = binary_opening(img_bin)
+
+    fname = 'out3_imgThreshLowBinOpen'
+    saveImage(img_bin,fname)
+    pyfits.writeto(fname+'.fits',img_bin.astype(np.int),clobber=True)
+
+    logging.info("Image [binary] generated after binary opening-2 cleaning : (%s)",fname)
+
+#    size = 9
+#    img_regions,nlbl = ndi.label(img_bin)
+#    for i in xrange(1,nlbl+1):
+#        inds = np.where(img_regions==i)
+#        if inds[0].size < size:
+#            img_regions[inds] = 0
+#    logging.info("Removed spurous region (<%d) pixels",size)
+#    logging.debug("Number of [regions] last : (%s)",np.unique(img_regions).size)
+#    saveImage(img_regions,'out4_imgRegionsTh')
+#    
+##    img_clean = img * 0
+##    img_clean[regions] = img_clip[regions]
+##    logging.info("Image [clean] generated with clipped image filtered by regions")
+##    saveImage(img_clean,'out5_imgClean')
+#
+#    # Segment
+#    # -------
+#    img_smooth = ndi.gaussian_filter(img_normal,3)
+#    logging.debug("Image Gauss-smoothed, sigma=%d",3)
+#    logging.debug("Image threshold: %.2f",thresh)
+#    
+#    saveImage(img_smooth,'out6_imgSmooth')
+#    
+#    if seeds:
+#        img_regions = run_rg(img_smooth,seeds,thresh)
+#    logging.debug("Segmented IDs: %d",img_regions.max())
+#
+#    saveImage(img_regions,'out7_imgRegionsRG')
+#
+#    # Measure
+#    # -------
+#    img_centroids = center_bright(img_regions,border)
+#    idx_centroids = np.where(img_centroids)
+#    centroids = zip(idx_centroids[1],idx_centroids[0])
+#    logging.debug("Centroids: %s",centroids)
+#    
+#
+#    # Output
+#    # ------
+#    plt.imshow(img_smooth)
+#    plt.savefig('image_smoothed.png')
+#    plt.imshow(img_regions)
+#    plt.savefig('image_segmented.png')
+#    plt.imshow(img_centroids)
+#    plt.savefig('image_centroids.png')
+#    print "-------------------------------"
+#    print "Segmented objects (centroid):"
+#    print "Xo Yo"
+#    for o_o in centroids:
+#        print o_o[0],o_o[1]
+#    print "---------"
+#
+#
+#    # Matching
+#    # --------
+#    if truth:
+#        matching_table = match_positions(centroids,truth,radius)
+#        matched_elem,neib_x,neib_y = zip(*matching_table)
+#        logging.debug("Matched list: %s",matched_elem)
+#        logging.debug("Neibors X: %s",neib_x)
+#        logging.debug("Neibors Y: %s",neib_y)
+#        
+#        Ntrue = matched_elem.count(True)
+#        Nfalse = matched_elem.count(False)
+#        Ntotal_truth = len(truth)
+#        Ntotal_sample = len(centroids)
+#        print "-------------------------------"
+#        print "Matched points (truth neibour):"
+#        print "Xo Yo neib? nearest_X nearest_Y"
+#        for i in range(len(centroids)):
+#            print centroids[i][0],centroids[i][1],matched_elem[i],neib_x[i],neib_y[i]
+#        print "-------------------------------"
+#        print "Completeness: ",Ntrue/float(Ntotal_truth)
+#        print "Contamination: ",Nfalse/float(Ntotal_truth)
+#        
+#
+#    return
 
 # ----------------------------------------------------------
 # --- FUNCTIONS --------------------------------------------
@@ -166,6 +236,47 @@ def histmax(img):
     imhist,bins = np.histogram(img.flatten(),bins=1000,normed=True)
     return bins[np.argmax(imhist)]
 
+def imhist(img,bins=1000,vmarks=[],log=False,xlabel='X',ylabel='%'):
+    """
+    Plot histogram from image array
+    #TODO This function should not remain here.
+    
+    Output:
+     - plt  : pyplot object. plt.show() will give you the histogram.
+    
+    """
+    np = numpy
+    
+    hist,bins = np.histogram(img.flatten(),bins=bins,normed=True)
+    
+    return barhist(hist,bins,vmarks,log,xlabel,ylabel)
+
+def barhist(hist,bins,vmarks=[],log=False,xlabel='X',ylabel='%'):
+    """
+    Plot histogram with vertical line marks
+    
+    Output:
+     - plt  : pyplot object. plt.show() will give you the histogram.
+    
+    """
+    plt = matplotlib.pyplot;
+        
+    width = 0.7*(bins[1]-bins[0])
+    centers = (bins[:-1]+bins[1:])/2.
+    plt.grid(True)
+    plt.bar(centers, hist, width=width, align='center', color='g', log=log, alpha=0.9)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    
+    ymax = hist.max()*1.01
+    ymin = -ymax/50.
+    
+    for i,iv in enumerate(vmarks):
+        ymaxn = ymax + i%2*(ymin*2)
+        plt.vlines(iv,ymin,ymaxn,color='r')
+        plt.text(iv,ymaxn,"%.1f"%(iv))
+        
+    return plt
 #
 # === FILTERING ===
 #

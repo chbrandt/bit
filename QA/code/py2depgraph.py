@@ -58,5 +58,12 @@ def main(argv):
     mf.run_script(argv[0])
     pprint.pprint({'depgraph':mf._depgraph,'types':mf._types})
     
+# Python's modulefinder module does all the heavy lifting here. modulefinder use bytecode 
+#  inspection to find dependencies, and therefore is free from any side-effects that may 
+#  be caused by importing the modules being studied.
+#
+# This py2depgraph.py script will write to stdout the dependency graph raw data for the 
+#  script named in its first parameter.
+
 if __name__=='__main__':
     main(sys.argv[1:])

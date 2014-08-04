@@ -9,7 +9,6 @@ try:
 except:
     pass
 
-
 # ---
 def invert(img,max=None):
     """
