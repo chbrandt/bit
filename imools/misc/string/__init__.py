@@ -1,4 +1,0 @@
-"""
-module for string manipulation
-"""
-
