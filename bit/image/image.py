@@ -1,14 +1,7 @@
 """Basic image/array processing, transforms and analysis."""
 
-import logging
 import numpy as np
-from scipy import ndimage as ndi
 
-try:
-    import pymorph
-    _PYMORPH=True
-except:
-    _PYMORPH=False
 
 class Distros:
     @staticmethod
