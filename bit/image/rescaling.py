@@ -1,21 +1,10 @@
-import logging
 import numpy as np;
-from image import Distros,Stats
+from image import Distros
 
 # ---
 def tanh(img,slope=100,cut=None):
     """
-    Modifies image intensities scale
-    
-    Input:
-     - img <ndarray>
-     - slope <float> : tanh('slope'*image)
-     - cut <float> : If 'cut' is not given, histogram's maximum is used
-    
-    Output:
-     - ndarray
-    
-    ---
+    Modifies image intensity by an hyperbolic tangent function
     """
     
     new_img = np.zeros(img.shape,dtype=img.dtype);
@@ -37,7 +26,7 @@ def tanh(img,slope=100,cut=None):
 
 def equalization(img,nbins=1000):
     """
-    Equalizes given image's histogram
+    Equalizes image histogram
     
     Input:
      - img ndarray : Image array
@@ -45,8 +34,6 @@ def equalization(img,nbins=1000):
     
     Output:
      - img_eq  ndarray : Image array equalized
-    
-    ---
     """
     
     cdf,bins = Distros.cdf(img,nbins)
@@ -56,7 +43,7 @@ def equalization(img,nbins=1000):
 
 def clip(img,thresholds=[None,None],fill=[None,None]):
     """
-    Clip image below-or-equal and above-or-equal given value thresholds
+    Clip image intensities, below and above thresholds
 
     Arguments passed valueing 'None' will not be modified. For example,
     if "thresholds[0]=None", the minimum value will remain untouched.

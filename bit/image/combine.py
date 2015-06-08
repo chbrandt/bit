@@ -1,11 +1,10 @@
-"""Combine two or more images"""
+"""
+Combine two or more images
+"""
 
-##@package combine
-
-import string
 import logging
 
-def overlap(groundimg, topimg, x, y):
+def merge(groundimg, topimg, x, y):
     """
     Sum two image arrays, respecting position (x,y) given
     
@@ -14,21 +13,10 @@ def overlap(groundimg, topimg, x, y):
     (coordinate) at 'groundimg' to where 'topimg' will be center-aligned.
 
     Note/Restriction: groundimg.shape >= topimg.shape
-    
-    Input:
-     - groundimg : numpy.ndarray(ndim=2)
-     - topimg : numpy.ndarray(ndim=2)
-     - x : int
-     - y : int
-    
-    Output:     
-     - merged image : numpy.ndarray(ndim=2)
-     
-     ---
      """
 
     if groundimg.shape[0] < topimg.shape[0]  or  groundimg.shape[1] < topimg.shape[1]:
-        #TODO: this is a very weak restriction. Should be removed!
+        #TODO(brandt): this is a very weak restriction. Should be removed!
         return False;
 
     x = int(x);

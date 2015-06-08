@@ -1,8 +1,8 @@
-import numpy
+import numpy as np
 import scipy.ndimage as ndi
 
 # ---
-def average(img, size=(3,3)):
+def mean(img, size=(3,3)):
     """
     Simple mean value filter
 
@@ -15,13 +15,8 @@ def average(img, size=(3,3)):
     
     ---
     """
-    np = numpy
-    
     kernel = np.ones((int(size[0]),int(size[1]))) / float(size[0]*size[1]);
-    
     return ndi.convolve(img,kernel)
-
-mean = average
 
 # --
 

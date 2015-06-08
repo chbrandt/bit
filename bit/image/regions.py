@@ -3,9 +3,8 @@
 import numpy
 np = numpy
 import scipy
+from scipy import ndimage as ndi
 
-import image
-import thresholding
 
 class Momenta:
     @staticmethod
@@ -15,7 +14,7 @@ class Momenta:
 
 class Clean:
     @staticmethod
-    def borderRegions(img,maxs,size):
+    def border(img,maxs,size):
         border = np.zeros(img.shape,np.bool)
         border[-size:,:] = 1
         border[:size,:] = 1
@@ -33,7 +32,7 @@ class Clean:
         return img_bin
 
     @staticmethod
-    def smallRegions(img_bin,size=9):
+    def small(img_bin,size=9):
         # Label each group (Regions==True) of pixels
         regions,nlbl = ndi.label(img_bin)
         for i in xrange(1,nlbl+1):
@@ -57,10 +56,10 @@ def maxima(img):
     ---
     """
     import pymorph
-    ndi = ndimage;
+    from image import Transf
 
     # Image has to be 'int' [0:255] to use in 'pymorph'
-    img = float2uint(img)
+    img = Transf.float2uint(img)
 
     # Search for image maxima
     maxs = pymorph.regmax(img)
@@ -85,9 +84,6 @@ def seeds(img,smooth=3,border=3):
 
     ---
     """
-    ndi = scipy.ndimage;
-    np = numpy;
-    
     # Find image maxima
     smoothed_img = ndi.gaussian_filter(img,smooth)
     maxs = maxima(smoothed_img)
@@ -134,7 +130,6 @@ def mask(segimg, objID):
     #
     id = float(objID);
     mask = np.where(segimg == int(id));
-    
     return mask;
 
 # ---
@@ -152,7 +147,6 @@ def read_labels(segimg):
     
     """
 
-    objIDs = list(set(seg_img.flatten()) - set([0]))
-
+    objIDs = list(set(segimg.flatten()) - set([0]))
     return objIDs
 

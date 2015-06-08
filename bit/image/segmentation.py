@@ -10,15 +10,15 @@
 #
 # Executable package : No
 
-
-import sys;
-
-import pyfits;
-import numpy as np;
+from image import Stats
+from regions import Clean
+import numpy as np
+from scipy import ndimage as ndi
 
 # ---
 def threshold(img,thresh=0,size=9):
-    """Segment using a thresholding algorithm
+    """
+    Segment image using a thresholding algorithm
     
     Input:
      - img  ndarray : Image array (ndim=2)
@@ -27,14 +27,10 @@ def threshold(img,thresh=0,size=9):
     
     Output:
      - regions : Labeled array for each segmented region
-    
-    ---
     """
-    np = numpy;
-    ndi = scipy.ndimage;
 
     if thresh == 0:
-        thresh = image.Stats.mode(img)
+        thresh = Stats.mode(img)
         thresh += np.std(img)
     
     # Take the binary image version "splitted" on the 'thresh' value
@@ -61,18 +57,14 @@ def regionGrow(img,x,y,thresh=0):
     
     Output:
      - region  ndarray(bool) : Region grown around given 'x,y'
-    
-    ---
     """
-    np = numpy;
-    ndi = scipy.ndimage;
-    
+
     flag = 1
     x_o = x
     y_o = y
     
     if thresh == 0:
-        thresh = image.Stats.mode(img)
+        thresh = Stats.mode(img)
         thresh += np.std(img)
 
     # Initialize region with the seed point
@@ -104,7 +96,6 @@ def regionGrow(img,x,y,thresh=0):
         for y_i,x_i in zip(*inds):
             if (img[y_i,x_i] >= thresh):# and (img[y_i,x_i] <= reg_mean):
                 region[y_i,x_i] = flag
-
 
     return region
 

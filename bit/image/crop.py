@@ -1,26 +1,15 @@
-"""Package to make FITS image copy/cuts and update their header"""
+"""
+Package to make FITS image copy/cuts and update their header
+"""
 
 import numpy as np;
 
-# ---
 def cutout(image,xo=0,yo=0,x_size=0,y_size=0,mask=None):
     """
     Make a cutout from image array
 
     If 'xo=0' and 'yo=0', given image (input_file) central pixel will be chosen as (xo,yo).
     If 'x_size=0' and 'y_size=0', half length of each side will be used for output dimensions.
-
-    Input:
-     - image           :ndarray: Image array (ndim=2,dtype=float)
-     - xo                  :int: Centroid (horizontal) position for cutting window
-     - yo                  :int: Centroid (vertical) position for cutting window
-     - x_size              :int: Horizontal cutting window size
-     - y_size              :int: Vertical cutting window size
-     - mask    :ndarray,ndarray: Tuple with index arrays (Output like numpy.where())
-
-    Output:
-     - img_cut  :ndarray: Resultant image array and (updated) header instance
-    ---
     """
     
     xo = int(xo);
@@ -120,18 +109,6 @@ def poststamp(segimg,objID,objimg=None,increase=0,relative_increase=False,connec
 
     Since a list with object IDs is given, a list with arrays, with each IDentified
     object, is returned.
-
-    Input:
-     - segimg          ndarray : Segmented image (ndim=2,dtype=int)
-     - objIDs            [int] : List with object IDs of interest in 'segimg'.
-     - objimg          ndarray : Objects image (ndim=2,dtype=float)
-     - increase          float : Value for poststamp resizing (> 0)
-     - relative_increase  bool : Is 'increase' a additive value (default,False) or multiplicative one(True)?
-        
-
-    Output:
-     - ndarray  : Image array and corresponding header
-    ---
     """
 
     _id = objID;
@@ -177,16 +154,6 @@ def mask(segimg,objID,objimg,negative=True,nullvalue=0):
 
     If 'negative=False', then the contrary is done: the elements valueing 'objID'
     in 'segimg' are excluded from the 'output' array containing the 'objimg' copy.
-    
-    Input:
-     - segimg  ndarray : Segmented image array (ndim=2,dtype=int)
-     - objID       int : Object ID to request output for
-     - objimg  ndarray : Objects (observed) image array (ndim=2,dtype=float)
-    
-    Output:
-     - output  ndarray : Same size (segimg) array with non-null pixels only for objID
-    
-    ---
     """
 
     outimg = np.zeros(segimg.shape,objimg.dtype) + nullvalue
