@@ -15,6 +15,7 @@ def normalize(img,unit=1):
     img_norm = img - _min
     return img_norm * _fc 
     
+    
 def float2uint(img):
     """
     Normalize image to uint8 scale range [0:255]
@@ -22,6 +23,7 @@ def float2uint(img):
     img = normalize(img,255)
     u_img = img.astype(np.uint8)
     return u_img
+
 
 def invert(img,max=None):
     """
@@ -115,7 +117,7 @@ class Transf:
 
 class Profile:
     """
-    Namespace to group functions computing/returning distributions
+    Namespace for methods dealing with
     """
     def grid(X=(-5,5,0.1),Y=(-5,5,0.1)):
         """
@@ -130,7 +132,55 @@ class Profile:
         X,Y = np.meshgrid(X,Y)
         return X,Y
         
-    # ---
+
+    def maxima(img):
+        """
+        Returns image local maxima
+        """
+    
+        import pymorph
+        from image import Transf
+    
+        # Image has to be 'int' [0:255] to use in 'pymorph'
+        img = Transf.float2uint(img)
+    
+        # Search for image maxima
+        maxs = pymorph.regmax(img)
+    
+        # A closing step is used "clue" near maxima
+        elem_strct = ndi.generate_binary_structure(2,2)
+        maxs = ndi.binary_closing(maxs,elem_strct)
+        return maxs
+    
+    
+    def seeds(img,smooth=3,border=3):
+        """
+        Returns an array with the seeds identified
+        """
+        # Find image maxima
+        smoothed_img = ndi.gaussian_filter(img,smooth)
+        maxs = maxima(smoothed_img)
+        del smoothed_img
+    
+        # Label the maxima to properly clean them after
+        maxs,nmax = ndi.label(maxs)
+    
+        # Remove maxima found near borders
+        if border:
+            maxs = Clean.borderRegions(img,maxs,border)
+    
+        # Take the seeds (x_o,y_o points)
+        seeds = np.zeros(img.shape,np.uint)
+        for i,id in enumerate(np.unique(maxs)):
+            seeds_tmp = seeds*0
+            seeds_tmp[maxs==id] = 1
+            ym,xm = Momenta.center_of_mass(seeds_tmp)
+            seeds[ym,xm] = i
+        
+        return seeds
+
+        
+class Model:
     def sersic(R=0,n=0.5,b=1,X=(-5,5,0.1),Y=(-5,5,0.1)):
         """
         Return an image of the Sersic profile defined by R,n,b
@@ -143,4 +193,3 @@ class Profile:
             R = np.sqrt(X**2 + Y**2)/R
         Z = np.exp( -b * (np.power(R,1./n) - 1))
         return Z
-

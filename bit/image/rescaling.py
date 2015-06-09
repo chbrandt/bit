@@ -1,7 +1,7 @@
 import numpy as np;
 from image import Distros
 
-# ---
+
 def tanh(img,slope=100,cut=None):
     """
     Modifies image intensity by an hyperbolic tangent function
@@ -40,6 +40,7 @@ def equalization(img,nbins=1000):
     imgterp = np.interp(img.flatten(),bins[:-1],cdf)
     img_eq = imgterp.reshape(img.shape)
     return img_eq;
+
 
 def clip(img,thresholds=[None,None],fill=[None,None]):
     """
