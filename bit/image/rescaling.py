@@ -27,13 +27,6 @@ def tanh(img,slope=100,cut=None):
 def equalization(img,nbins=1000):
     """
     Equalizes image histogram
-    
-    Input:
-     - img ndarray : Image array
-     - nbins int : Number of bins to use for equalization
-    
-    Output:
-     - img_eq  ndarray : Image array equalized
     """
     
     cdf,bins = Distros.cdf(img,nbins)

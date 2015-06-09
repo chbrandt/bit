@@ -5,7 +5,6 @@ Module to deal with objects identification in segmented images
 """
 
 from image import Stats
-from regions import Clean
 import numpy as np
 from scipy import ndimage as ndi
 
