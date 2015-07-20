@@ -1,4 +1,4 @@
 #!/bin/bash
 
-sphinx-apidoc -e -o ../sphinx/. ../../bit/image
+sphinx-apidoc -e -f -o ../sphinx/. ../../bit/image
 
