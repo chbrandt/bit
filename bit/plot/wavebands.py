@@ -208,6 +208,43 @@ class Wavebands(list):
     unit = property(__getUnit__,__setUnit__,
             doc="Get/Set default unit")
 
+from collections import namedtuple
+Point = namedtuple('Point','id, x, xunit, y, yunit',verbose=False)
+Line = namedtuple('Line','id, xi, xf, xunit, yi, yf, yunit',verbose=False)
+
+def dataframe2Elements(df):
+    """
+    Convert a pandas.DataFrame to Point/Line elements.
+
+    It is expected a DataFrame with the columns:
+    +------------------+------------------+
+    | filter           | depth            |
+    +-----+-----+------+-----+-----+------+
+    | min | max | unit | min | max | unit |
+    +-----+-----+------+-----+-----+------+
+    The DataFrame index will be used as element's 'id'
+    """
+
+    elems = []
+    it = df.iterrows()
+    for row in it:
+        ind = row[0]
+        tab = row[1]
+        _xf = tab[('filter','max')]
+        _xi = tab[('filter','min')]
+        _xu = tab[('filter','unit')]
+        _yf = tab[('depth','max')]
+        _yi = tab[('depth','min')]
+        _yu = tab[('depth','unit')]
+        if _xf == _xi:
+            assert _yi==_yf
+            _elem = Point(ind,_xi,_xu,_yi,_yu)
+        else:
+            _elem = Line(ind,_xi,_xf,_xu,_yi,_yf,_yu)
+        elems.append(_elem)
+    return elems
+
+
 def findLimit(iterable,lim,func,lvl=0):
     """
     Find the limit (min,max) value within an iterable structure.
@@ -259,35 +296,22 @@ def findLimit(iterable,lim,func,lvl=0):
         log.debug(_shift+'\tlim object %s' % id(lim))
     return lim
 
+
 # The core of the plot function -- annotation and axis cloning -- were
 #  taken from stackoverflow's post by Joe Kington:
 #  http://stackoverflow.com/a/3919443/687896
+# I should eveolve the function in the near future to use Matplotlib's
+#  AxesGrid toolkit, like in this example:
+#  http://matplotlib.org/mpl_toolkits/axes_grid/users/overview.html#axisartist-with-parasiteaxes
+#
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-def sed(data):
+def sed(surveysData,xunit='GHz',yunit='erg/s.cm2'):
     """
     """
-    bands = Wavebands()
-    for band,lims in _WAVEBANDS.items():
-        _wb = Waveband(band,lims['min'],lims['max'],lims['unit'])
-        bands.append(_wb)
 
-    main_unit = 'GHz'
-
-    _x,_y,_u = zip(*data)
-    print _x,_y
-    xu = []
-    for xi,ui in zip(_x,_u):
-        _xx = xi * units.Unit(ui)
-        _xx = _xx.to(main_unit,equivalencies=units.spectral())
-        print _xx
-        xu.append(_xx.value)
-    yu = []
-    for yi in _y:
-        yu.append(yi)
-
-    #-- Plot the results ------------------------------------------------------
+    # Setup the plot
     fig = plt.figure()
     ax = fig.add_subplot(111)
 
@@ -295,49 +319,67 @@ def sed(data):
     plt.subplots_adjust(bottom=0.2)
     plt.xscale('log')
 
-    bands.unit = main_unit
+    # Construct the wavebands (x) domain
+    #
+    bands = Wavebands()
+    for band,lims in _WAVEBANDS.items():
+        _wb = Waveband(band,lims['min'],lims['max'],lims['unit'])
+        bands.append(_wb)
+    bands.unit = xunit
+
     ax.set_xlim(bands.min.value,bands.max.value)
-    print "",yu
-    print 'MIN'
-    _ymin = findLimit(yu,lim=float('+inf'),func=min)
-    print _ymin
-    _ymin *= 0.9
-    print 'MAX'
-    _ymax = findLimit(yu,lim=float('-inf'),func=max)
-    print _ymax
-    _ymax *= 1.1
-    ax.set_ylim(_ymin,_ymax)
-    print len(xu)
-    print len(yu)
-    assert len(xu)==len(yu)
-    for i in xrange(len(xu)):
-        _x = xu[i]
-        _y = yu[i]
-        try:
-            _LIXO = iter(_x)
-            assert len(_x)==len(_y)
-            ax.plot(_x, _y, 'b-', lw=5)
-        except:
-            print _x
-            print _y
-            ax.plot(_x, _y, 'b*')
+
     ax.grid(True)
 
     # Drop the bottom spine by 40 pts
     ax.spines['bottom'].set_position(('outward', 40))
 
     # Make a second bottom spine in the position of the original bottom spine
-    make_second_bottom_spine(label='Wavebands')
+#    make_second_bottom_spine(label='Wavebands')
 
     # Annotate the groups
 #    for band in bands:
 #        annotate_group(band,main_unit)
 
-    plt.xlabel('Frequency(%s)' % main_unit)
-    plt.ylabel('Depth')
-    plt.title('Spectral depth')
+    ax.set_xlabel('Frequency(%s)' % xunit)
+    ax.set_ylabel('Depth')
+    ax.set_title('Spectral depth')
 
-    #plt.show()
+    # _x,_y,_u = zip(*data)
+    # xu = []
+    # for xi,ui in zip(_x,_u):
+    #     _xx = xi * units.Unit(ui)
+    #     _xx = _xx.to(main_unit,equivalencies=units.spectral())
+    #     xu.append(_xx.value)
+    # yu = []
+    # for yi in _y:
+    #     yu.append(yi)
+
+    # Finally, plot the data
+    for elem in surveysData:
+        if isinstance(elem,Line):
+            xu = units.Quantity([elem.xf,elem.xi],elem.xunit)
+            xr = xu.to(xunit,equivalencies=units.spectral())
+            yu = units.Quantity([elem.yf,elem.yi],elem.yunit)
+            yr = yu.to(yunit,equivalencies=units.spectral())
+            ax.plot(xr, yr, 'b-', lw=5)
+        else:
+            assert isinstance(elem,Point)
+            xu = units.Quantity(elem.x,elem.xunit)
+            xp = xu.to(xunit,equivalencies=units.spectral())
+            yu = units.Quantity(elem.y,elem.yunit)
+            yp = yu.to(yunit,equivalencies=units.spectral())
+            ax.plot(xp, yp, 'b*')
+
+    # _ymin = findLimit(yu,lim=float('+inf'),func=min)
+    # _ymin *= 0.9
+    # _ymax = findLimit(yu,lim=float('-inf'),func=max)
+    # _ymax *= 1.1
+    _ymin,_ymax = ax.get_ylim()
+    _ymin *= 0.9
+    _ymax *= 1.1
+    ax.set_ylim(_ymin,_ymax)
+
     return plt
 
 # --------------------------------------------------------------------------
@@ -361,7 +403,6 @@ def annotate_group(band, unit, ax=None):
     name = band.name
     xspan = band.limits(unit=unit).value
     xcenter = np.mean(xspan)
-    print name,xspan,xcenter
     left_arrow = annotate(ax, name, xspan[0], xcenter, ymin, ypad)
     right_arrow = annotate(ax, name, xspan[1], xcenter, ymin, ypad)
 
@@ -385,90 +426,42 @@ def make_second_bottom_spine(ax=None, label=None, offset=0, labeloffset=20):
                 verticalalignment='top', horizontalalignment='center')
 # --------------------------------------------------------------------------
 
-
-# def create_plotgrid(shape=(1,7)):
-#     """
-#     Create a grid of (sub)plots, each for a each waveband
-#     """
-#
-#     import numpy as np
-#     from matplotlib import pyplot as plt
-#     fig,axs = plt.subplots(1,8, sharex=False, sharey=True)
-# #    fig.set(figheight=3,figwidth=9)
-#
-#     y_quantity = 'Depth'
-#     figure_title = '%s - Waveband relation' % y_quantity
-#
-#     fig.suptitle(figure_title)
-#     fig.subplots_adjust(wspace=0,top=0.8,bottom=0.2)
-#
-#     ax_atLeft = axs[0]
-#     ax_atLeft.set(ylabel=y_quantity)
-#     ax_atLeft.set(ylim=(0,1))
-#     ax_atLeft.grid(True)
-#
-#     for ax in axs:
-#         for label in ax.get_yticklabels():
-#             label.set_visible(False)
-#         for label in ax.get_xticklabels():
-#             label.set_fontsize(10)
-#             label.set_rotation('vertical')
-#
-#     axs[0].set(title='Radio')
-#     radio_xlim=(1E9,1E7)
-#     axs[0].set(xlim=radio_xlim)
-#     radio_xticks=np.linspace(*radio_xlim,num=5)[:-1]
-#     axs[0].set_xticks(radio_xticks)
-#
-#     axs[1].set(title='Millimeter')
-#     mm_xlim=(1E7,1E5)
-#     axs[1].set(xlim=mm_xlim)
-#     mm_xticks=np.linspace(*mm_xlim,num=5)[:-1]
-#     axs[1].set_xticks(mm_xticks)
-#
-#     axs[2].set(title='Infrared')
-#     ir_xlim=(1E5,1E3)
-#     axs[2].set(xlim=ir_xlim)
-#     ir_xticks=np.linspace(*ir_xlim,num=5)[:-1]
-#     axs[2].set_xticks(ir_xticks)
-#
-#     axs[3].set(title='Optical')
-#     opt_xlim=(1E3,3E2)
-#     axs[3].set(xlim=opt_xlim)
-#     opt_xticks=np.linspace(*opt_xlim,num=5)[:-1]
-#     axs[3].set_xticks(opt_xticks)
-#
-#     axs[4].set(title='UV')
-#     uv_xlim=(3E2,1E2)
-#     axs[4].set(xlim=uv_xlim)
-#     uv_xticks=np.linspace(*uv_xlim,num=5)[:-1]
-#     axs[4].set_xticks(uv_xticks)
-#
-#     axs[5].set(title='EUV')
-#     euv_xlim=(1E2,10)
-#     axs[5].set(xlim=euv_xlim)
-#     euv_xticks=np.linspace(*euv_xlim,num=5)[:-1]
-#     axs[5].set_xticks(euv_xticks)
-#
-#     axs[6].set(title='X-ray')
-#     xr_xlim=(10,1E-2)
-#     axs[6].set(xlim=xr_xlim)
-#     xr_xticks=np.linspace(*xr_xlim,num=5)[:-1]
-#     axs[6].set_xticks(xr_xticks)
-#
-#     axs[7].set(title='Gamma-ray')
-#     gr_xlim=(1E-2,1E-5)
-#     axs[7].set(xlim=gr_xlim)
-#     gr_xticks=np.linspace(*gr_xlim,num=5)[:-1]
-#     axs[7].set_xticks(gr_xticks)
-#
-#     return fig
-
+import pandas as pd
 if __name__ == '__main__':
-#    data = [(1400,0.5,'MHz'),(2,0.1,'keV')]
+    data = {
+        ('filter','min'):{
+            'survey1':1400,
+            'survey2':2,
+            'survey3':3000},
+        ('filter','max'):{
+            'survey1':1400,
+            'survey2':10,
+            'survey3':10000},
+        ('filter','unit'):{
+            'survey1':'MHz',
+            'survey2':'keV',
+            'survey3':'angstrom'},
+        ('depth','min'):{
+            'survey1':0.5,
+            'survey2':0.1,
+            'survey3':0.3},
+        ('depth','max'):{
+            'survey1':0.5,
+            'survey2':0.1,
+            'survey3':0.3},
+        ('depth','unit'):{
+            'survey1':'erg/s.cm2',
+            'survey2':'erg/s.cm2',
+            'survey3':'erg/s.cm2'},
+    }
+    df = pd.DataFrame(data)
+
     data = [(1400,0.5,'MHz'),
             ([2,10],[0.1,0.1],'keV'),
             ([3000,10000],[0.3,0.3],'angstrom')]
-    r = sed(data)
+
+    dataElements = dataframe2Elements(df)
+
+    r = sed(dataElements)
     if r is not None:
         r.show()
